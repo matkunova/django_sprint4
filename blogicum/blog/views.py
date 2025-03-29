@@ -43,9 +43,9 @@ class PostUpdateView(UpdateView):
     template_name = 'blog/create.html'
 
     def dispatch(self, request, *args, **kwargs):
-        self.object = self.get_object()   
+        self.object = self.get_object()
         if self.object.author != request.user:
-            return redirect('blog:post_detail', pk=self.object.pk)         
+            return redirect('blog:post_detail', pk=self.object.pk)
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
@@ -85,7 +85,6 @@ class PostDetailView(DetailView):
 
 
 class ProfileListView(ListView):
-    '''Страница профиля'''
     model = Post
     template_name = 'blog/profile.html'
     context_object_name = 'posts'
@@ -130,7 +129,6 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class PostsListView(ListView):
-    '''Посты для главной страницы'''
     model = Post
     ordering = '-pub_date'
     template_name = 'blog/index.html'
