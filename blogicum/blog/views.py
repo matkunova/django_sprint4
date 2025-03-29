@@ -7,7 +7,7 @@ from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, UpdateView
 )
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from .constants import LIMIT_OF_POSTS
