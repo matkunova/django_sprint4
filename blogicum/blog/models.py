@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from core.models import PublishedModel
-from .constants import TITLE_MAX_LENGTH
+from .constants import TITLE_MAX_LENGTH, SHORT_TEXT_LENGTH
 
 
 User = get_user_model()
@@ -71,7 +71,7 @@ class Post(PublishedModel):
                               blank=True, null=True)
 
     def short_text(self):
-        return self.text[:100] + '...'
+        return self.text[:SHORT_TEXT_LENGTH] + '...'
     short_text.short_description = 'Начало текста'
 
     class Meta:

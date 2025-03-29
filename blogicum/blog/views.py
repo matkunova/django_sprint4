@@ -7,9 +7,10 @@ from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, UpdateView
 )
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from .constants import LIMIT_OF_POSTS
 from .models import Category, Post, Comment
 from .forms import PostForm, CommentForm
 
@@ -21,6 +22,29 @@ class OnlyAuthorMixin(UserPassesTestMixin):
     def test_func(self):
         object = self.get_object()
         return object.author == self.request.user
+
+
+def filter_posts(queryset, user=None, username=None):
+    queryset = queryset.select_related(
+        'author', 'location', 'category').annotate(
+        comment_count=Count('comments')
+    )
+    if username:
+        profile = get_object_or_404(User, username=username)
+        queryset = queryset.filter(author=profile)
+        if user != profile:
+            queryset = queryset.filter(
+                is_published=True,
+                pub_date__lte=timezone.now(),
+                category__is_published=True,
+            )
+    else:
+        queryset = queryset.filter(
+            is_published=True,
+            pub_date__lte=timezone.now(),
+            category__is_published=True,
+        )
+    return queryset
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
@@ -89,29 +113,19 @@ class ProfileListView(ListView):
     template_name = 'blog/profile.html'
     context_object_name = 'posts'
     ordering = '-pub_date'
-    paginate_by = 10
+    paginate_by = LIMIT_OF_POSTS
 
     def get_queryset(self):
-        self.profile = get_object_or_404(
-            User,
-            username=self.kwargs['username']
-        )
-        queryset = super().get_queryset().filter(
-            author=self.profile,
-        ).select_related('category', 'location',).annotate(
-            comment_count=Count('comments')
-        )
-        if self.request.user != self.profile:
-            queryset = queryset.filter(
-                is_published=True,
-                pub_date__lte=timezone.now(),
-                category__is_published=True,
-            )
-        return queryset
+        username = self.kwargs['username']
+        queryset = super().get_queryset()
+        return filter_posts(queryset, self.request.user, username)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = self.profile
+        context['profile'] = get_object_or_404(
+            User,
+            username=self.kwargs['username']
+        )
         return context
 
 
@@ -132,25 +146,17 @@ class PostsListView(ListView):
     model = Post
     ordering = '-pub_date'
     template_name = 'blog/index.html'
-    paginate_by = 10
+    paginate_by = LIMIT_OF_POSTS
 
     def get_queryset(self):
-        queryset = super().get_queryset().filter(
-            is_published=True,
-            pub_date__lte=timezone.now(),
-            category__is_published=True,
-        ).select_related(
-            'author', 'location', 'category'
-        ).annotate(
-            comment_count=Count('comments')
-        )
-        return queryset
+        queryset = super().get_queryset()
+        return filter_posts(queryset)
 
 
 class PostsInCategoryListView(ListView):
     model = Post
     ordering = '-pub_date'
-    paginate_by = 10
+    paginate_by = LIMIT_OF_POSTS
     template_name = 'blog/category.html'
 
     def get_queryset(self):
@@ -160,14 +166,8 @@ class PostsInCategoryListView(ListView):
             slug=category_slug,
             is_published=True,
         )
-        queryset = super().get_queryset().filter(
-            is_published=True,
-            pub_date__lte=timezone.now(),
-            category=self.category
-        ).select_related('author', 'category').annotate(
-            comment_count=Count('comments')
-        )
-        return queryset
+        queryset = super().get_queryset().filter(category=self.category)
+        return filter_posts(queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
